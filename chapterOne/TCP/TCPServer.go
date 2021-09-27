@@ -47,7 +47,7 @@ func handleRequest(conn net.Conn, msgChan chan string) {
 		log.Panic(err)
 		panic(err)
 	}
-	msgChan <- string(buf[:reqLen])
+	msgChan <- conn.RemoteAddr().String() + ":" + string(buf[:reqLen])
 	fmt.Println(reqLen)
 	// conn.Write([]byte("Message received."))
 	// conn.Close()
