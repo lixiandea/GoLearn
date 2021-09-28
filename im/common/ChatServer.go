@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+
+	"github.com/robfig/cron/v3"
 )
 
 type client chan<- string
@@ -39,12 +41,15 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	go clientWrite(conn, ch)
 
-	if input.Scan() {
+	for input.Scan() {
+		fmt.Println("recv: ", input.Text())
 		s.message <- who + ":" + input.Text()
+		if input.Text() == "EXIT" {
+			s.leaving <- ch
+			s.message <- who + " has leave"
+			break
+		}
 	}
-
-	s.leaving <- ch
-	s.message <- who + " has leave"
 
 }
 
@@ -95,6 +100,14 @@ func (s *Server) Start() {
 }
 
 func main() {
+	c := cron.New(cron.WithSeconds())
+	spec := "*/1 * * * *?"
+
 	server := NewChatServer(":10086")
 	server.Start()
+	c.AddFunc(spec, func() {
+		fmt.Println("client: ", len(server.entering))
+		fmt.Println("message remain: ", len(server.message))
+		// fmt.Println("client: ", len(server.entering))
+	})
 }

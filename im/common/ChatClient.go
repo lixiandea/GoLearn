@@ -37,9 +37,18 @@ func (c *Client) Start() {
 	}
 
 	defer conn.Close()
-	go c.handleSend(conn)
+	// go c.handleSend(conn)
+
 	go c.handleRecv(conn)
-	<-exitCh
+	var msg string
+	for {
+		msg = ""
+		fmt.Scan(&msg)
+		conn.Write([]byte(msg))
+		if msg == "EXIT" {
+			conn.Close()
+		}
+	}
 }
 
 func (c *Client) handleSend(conn net.Conn) {
@@ -60,8 +69,6 @@ func (c *Client) handleSend(conn net.Conn) {
 
 func (c *Client) handleRecv(conn net.Conn) {
 	buff := make([]byte, 4096)
-	f, _ := os.Create("recv.txt")
-	defer f.Close()
 	len := 0
 	for {
 		n, err := conn.Read(buff)
@@ -73,7 +80,7 @@ func (c *Client) handleRecv(conn net.Conn) {
 		if n == 0 {
 			continue
 		}
-		fmt.Fprintln(f, string(buff[:len-1]))
+		fmt.Println(buff[:len])
 	}
 }
 
