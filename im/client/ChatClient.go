@@ -4,21 +4,30 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"im/common"
 	"log"
 	"net"
 	"os"
+	"sync"
 )
 
 var exitCh = make(chan string)
 
 type Client struct {
-	ch   chan string
+	name string
 	addr string
+}
+
+func setNickName() string {
+	var nickname string
+	fmt.Print("Enter your nickname : ")
+	fmt.Scanln(&nickname)
+	return nickname
 }
 
 func NewClient(addr string) *Client {
 	return &Client{
-		ch:   make(chan string, 1024),
+		name:   setNickName(),
 		addr: addr,
 	}
 }
@@ -52,39 +61,48 @@ func (c *Client) Start() {
 }
 
 func (c *Client) handleSend(conn net.Conn) {
-	input := bufio.NewScanner(os.Stdin)
-	for input.Scan() {
-		line := input.Text()
-		if len(line) != 0 {
-			fmt.Fprintln(conn, line)
+	input := bufio.NewReader(os.Stdin)
+
+	for{
+		var msg common.Message
+		var err error
+
+		msg.User = c.name
+		msg.Msg, err = input.ReadString('\n')
+		if err != nil {
+			fmt.Println("Stdin error ", err)
 		}
-		if line == "exit" {
-			exitCh <- "exit"
+
+		if msg.Msg[0] == '-' && msg.Msg[1] == '1' {
+			fmt.Println("Exiting chatsession.")
+			err := common.SendMsg(&common.Message{Msg: "leave Chat", User: c.name}, conn)
+			if err != nil {
+				log.Print("error send")
+			}
+			break
 		}
-		for t := range c.ch {
-			fmt.Println(t)
-		}
+		// Sends msg to chatserver.
+		common.SendMsg(&msg, conn)
 	}
+
 }
 
 func (c *Client) handleRecv(conn net.Conn) {
-	buff := make([]byte, 4096)
-	len := 0
 	for {
-		n, err := conn.Read(buff)
+		msg, err := common.ReadMsg(conn)
 		if err != nil {
 			log.Println("Read fail due to err: ", err)
 			continue
 		}
-
-		if n == 0 {
-			continue
-		}
-		fmt.Println(buff[:len])
+		fmt.Println(msg.ToString())
 	}
 }
 
 func main() {
+
 	c := NewClient(":10086")
-	c.Start()
+	go c.Start()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }

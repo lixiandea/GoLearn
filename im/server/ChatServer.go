@@ -2,78 +2,55 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"im/common"
 	"log"
 	"net"
-
-	"github.com/robfig/cron/v3"
 )
 
 type client chan<- string
 
 type Server struct {
-	addr     string
-	entering chan client
-	leaving  chan client
-	message  chan string
+	addr    string
+	clients []net.Conn
 }
 
 func NewChatServer(addr string) *Server {
+	var clients [] net.Conn
 	return &Server{
-		addr:     addr,
-		entering: make(chan client),
-		leaving:  make(chan client),
-		message:  make(chan string),
+		addr:    addr,
+		clients: clients,
+	}
+}
+
+func (s *Server) deleteClosedConn(conn net.Conn) {
+	// Finds the connection in clients and removes it.
+	for i := 0; i <= len(s.clients); i++ {
+		if conn == s.clients[i] {
+			s.clients = s.clients[:i+copy(s.clients[i:], s.clients[i+1:])]
+			break
+		}
 	}
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	ch := make(chan string)
-
-	who := conn.RemoteAddr().String()
-
-	ch <- "you are " + who
-	s.message <- who + "has entered"
-	s.entering <- ch
-
-	input := bufio.NewScanner(conn)
-
-	go clientWrite(conn, ch)
-
-	for input.Scan() {
-		fmt.Println("recv: ", input.Text())
-		s.message <- who + ":" + input.Text()
-		if input.Text() == "EXIT" {
-			s.leaving <- ch
-			s.message <- who + " has leave"
+	defer conn.Close()
+	for {
+		msg, err := common.ReadMsg(conn)
+		//The connection got closed.
+		if err != nil {
+			fmt.Println("Lost connection to client")
+			s.deleteClosedConn(conn)
 			break
 		}
-	}
 
-}
-
-func clientWrite(conn net.Conn, ch chan string) {
-	for msg := range ch {
-		fmt.Fprintln(conn, msg)
-	}
-}
-
-func (s *Server) broadcast() {
-	clients := make(map[client]bool)
-	for {
-		select {
-		case msg := <-s.message:
-			for client := range clients {
-				client <- msg
-			}
-		case client := <-s.entering:
-			clients[client] = true
-		case client := <-s.leaving:
-			delete(clients, client)
-			close(client)
+		fmt.Println("Recived msg : ", msg.Msg, " from ", msg.User)
+		// Sends msg to all clients connected to server.
+		for _, conn := range s.clients {
+			common.SendMsg(&msg, conn)
 		}
 	}
+
 }
 
 func (s *Server) Start() {
@@ -83,31 +60,28 @@ func (s *Server) Start() {
 		log.Fatal("Server Start fail due to err:", err)
 		panic(err)
 	}
-	go s.broadcast()
 
 	log.Println("Server Start success and listen to ", s.addr)
 
 	for {
 		conn, err := listener.Accept()
+
 		if err != nil {
 			log.Println(err)
 			continue
+		}else {
+			s.clients = append(s.clients, conn)
+			go s.handleConn(conn)
 		}
-		defer conn.Close()
 
-		go s.handleConn(conn)
 	}
 }
 
 func main() {
-	c := cron.New(cron.WithSeconds())
-	spec := "*/1 * * * *?"
-
 	server := NewChatServer(":10086")
-	server.Start()
-	c.AddFunc(spec, func() {
-		fmt.Println("client: ", len(server.entering))
-		fmt.Println("message remain: ", len(server.message))
-		// fmt.Println("client: ", len(server.entering))
-	})
+	go server.Start()
+	var input string
+	fmt.Println("Exit server by pressing enter in console.")
+	fmt.Scanln(&input)
+	fmt.Println("Exiting server")
 }
