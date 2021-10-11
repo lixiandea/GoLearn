@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-func SendMsg(msg *Message, conn net.Conn) error{
+func SendMsg(msg Message, conn net.Conn) error {
 	encoder := gob.NewEncoder(conn)
 	err := encoder.Encode(msg)
 	if err != nil {
@@ -15,12 +15,12 @@ func SendMsg(msg *Message, conn net.Conn) error{
 	return err
 }
 
-func ReadMsg(conn net.Conn) (Message, error){
+func ReadMsg(conn net.Conn) (Message, error) {
 	var msg Message
 	decoder := gob.NewDecoder(conn)
 	err := decoder.Decode(&msg)
 	if err != nil {
-		log.Print("encoder fail, err:", err)
+		log.Print("decoder fail, err:", err)
 	}
 	// fmt.Print(msg.ToString())
 	return msg, err

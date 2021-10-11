@@ -8,15 +8,13 @@ import (
 	"net"
 )
 
-type client chan<- string
-
 type Server struct {
 	addr    string
 	clients []net.Conn
 }
 
 func NewChatServer(addr string) *Server {
-	var clients [] net.Conn
+	var clients []net.Conn
 	return &Server{
 		addr:    addr,
 		clients: clients,
@@ -47,7 +45,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		fmt.Println("Recived msg : ", msg.Msg, " from ", msg.User)
 		// Sends msg to all clients connected to server.
 		for _, conn := range s.clients {
-			common.SendMsg(&msg, conn)
+			common.SendMsg(msg, conn)
 		}
 	}
 
@@ -68,8 +66,7 @@ func (s *Server) Start() {
 
 		if err != nil {
 			log.Println(err)
-			continue
-		}else {
+		} else {
 			s.clients = append(s.clients, conn)
 			go s.handleConn(conn)
 		}

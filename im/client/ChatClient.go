@@ -11,8 +11,6 @@ import (
 	"sync"
 )
 
-var exitCh = make(chan string)
-
 type Client struct {
 	name string
 	addr string
@@ -27,7 +25,7 @@ func setNickName() string {
 
 func NewClient(addr string) *Client {
 	return &Client{
-		name:   setNickName(),
+		name: setNickName(),
 		addr: addr,
 	}
 }
@@ -49,21 +47,22 @@ func (c *Client) Start() {
 	// go c.handleSend(conn)
 
 	go c.handleRecv(conn)
-	var msg string
-	for {
-		msg = ""
-		fmt.Scan(&msg)
-		conn.Write([]byte(msg))
-		if msg == "EXIT" {
-			conn.Close()
-		}
-	}
+	go c.handleSend(conn)
+	// var msg string
+	// for {
+	// 	msg = ""
+	// 	fmt.Scan(&msg)
+	// 	conn.Write([]byte(msg))
+	// 	if msg == "EXIT" {
+	// 		conn.Close()
+	// 	}
+	// }
 }
 
 func (c *Client) handleSend(conn net.Conn) {
 	input := bufio.NewReader(os.Stdin)
 
-	for{
+	for {
 		var msg common.Message
 		var err error
 
@@ -75,14 +74,14 @@ func (c *Client) handleSend(conn net.Conn) {
 
 		if msg.Msg[0] == '-' && msg.Msg[1] == '1' {
 			fmt.Println("Exiting chatsession.")
-			err := common.SendMsg(&common.Message{Msg: "leave Chat", User: c.name}, conn)
+			err := common.SendMsg(common.Message{Msg: "leave Chat", User: c.name}, conn)
 			if err != nil {
 				log.Print("error send")
 			}
 			break
 		}
 		// Sends msg to chatserver.
-		common.SendMsg(&msg, conn)
+		common.SendMsg(msg, conn)
 	}
 
 }
