@@ -1,0 +1,3 @@
+[submodule "video_server"]
+	path = video_server
+	url = https://github.com/lixiandea/video_server.git
