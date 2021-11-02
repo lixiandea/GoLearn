@@ -1,4 +1,4 @@
-package main
+package leetcode
 
 func maxSubArray(nums []int) int {
 	var sum int
